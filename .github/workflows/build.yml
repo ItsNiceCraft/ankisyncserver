@@ -1,0 +1,90 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      ANKI_VERSION:
+        description: 'Anki version to build'
+        required: true
+
+env:
+  REGISTRY: ghcr.io
+  ANKI_VERSION: ${{ github.event.inputs.ANKI_VERSION }}
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Prepare env
+        run: |
+          echo "LATEST_VERSION=$(curl -s https://api.github.com/repos/ankitects/anki/releases/latest | jq -r '.tag_name')" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}" >> ${GITHUB_ENV}
+
+      - name: Checkout anki
+        uses: actions/checkout@v4
+        with:
+          repository: ankitects/anki
+          ref: "refs/tags/${{ env.ANKI_VERSION }}"
+
+      - name: Checkout docker-ankisyncserver
+        uses: actions/checkout@v4
+        with:
+          path: docker-ankisyncserver
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.8.2
+        with:
+          cosign-release: 'v2.2.4'
+
+      - name: Install yq
+        run : |
+          mkdir -p $HOME/.local/bin
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          curl -Lo "$HOME/.local/bin/yq" https://github.com/mikefarah/yq/releases/download/v4.45.3/yq_linux_amd64
+          chmod +x "$HOME/.local/bin/yq"
+
+      - name: Patch Dockerfile
+        run: |
+          chmod +x docker-ankisyncserver/scripts/patch-dockerfile.sh
+          bash docker-ankisyncserver/scripts/patch-dockerfile.sh
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.10.0
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        uses: docker/login-action@v3.4.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5.7.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@v6.16.0
+        with:
+          context: docs/syncserver
+          push: true
+          file: docs/syncserver/Dockerfile
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.ANKI_VERSION }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ANKI_VERSION=${{ env.ANKI_VERSION }}
+
+      - name: Sign the published Docker image
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
