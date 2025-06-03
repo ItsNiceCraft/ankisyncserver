@@ -22,11 +22,9 @@ jobs:
       - name: Check if GHCR image tag exists
         id: check
         run: |
-          TOKEN=$(echo -n "${{ secrets.GITHUB_TOKEN }}" | base64)
-          # HEAD request to manifest endpoint
-          if curl --head --fail \
-             -H "Authorization: Bearer ${TOKEN}" \
-             https://ghcr.io/v2/itsnicecraft/ankisyncserver/manifests/${{ env.LATEST_VERSION }}; then
+          if curl --head --fail --silent \
+             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+             "https://ghcr.io/v2/itsnicecraft/ankisyncserver/manifests/${{ env.LATEST_VERSION }}"; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
