@@ -3,7 +3,7 @@ name: Check if new version is available
 on:
   workflow_dispatch:
   schedule:
-    - cron: '25 0 * * *'
+    - cron: "25 0 * * *"
 
 env:
   REGISTRY: ghcr.io
@@ -19,13 +19,17 @@ jobs:
       - name: Get latest anki release
         run: echo "LATEST_VERSION=$(curl -s https://api.github.com/repos/ankitects/anki/releases/latest | jq -r '.tag_name')" >> $GITHUB_ENV
 
-      - name: Check if Docker manifest exists
-        id: check-manifest
+      - name: Check if GHCR image tag exists
+        id: check
         run: |
-          if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.LATEST_VERSION }} > /dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_ENV
+          TOKEN=$(echo -n "${{ secrets.GITHUB_TOKEN }}" | base64)
+          # HEAD request to manifest endpoint
+          if curl --head --fail \
+             -H "Authorization: Bearer ${TOKEN}" \
+             https://ghcr.io/v2/itsnicecraft/ankisyncserver/manifests/${{ env.LATEST_VERSION }}; then
+            echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "exists=false" >> $GITHUB_ENV
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Dispatch build.yml workflow if tag does not exist
