@@ -22,13 +22,11 @@ jobs:
       - name: Check if GHCR image tag exists
         id: check
         run: |
-          if curl --head --fail --silent \
-             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-             "https://ghcr.io/v2/itsnicecraft/ankisyncserver/manifests/${{ env.LATEST_VERSION }}"; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
+            if docker manifest inspect ghcr.io/itsnicecraft/ankisyncserver:${LATEST_VERSION} > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_ENV
+            else
+            echo "exists=false" >> $GITHUB_ENV
+            fi
 
       - name: Dispatch build.yml workflow if tag does not exist
         if: env.exists == 'false'
