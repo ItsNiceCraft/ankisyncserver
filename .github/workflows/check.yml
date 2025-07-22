@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Get latest anki release
-        run: echo "LATEST_VERSION=$(curl -s https://api.github.com/repos/ankitects/anki/releases/latest | jq -r '.tag_name')" >> $GITHUB_ENV
+        run: echo "LATEST_VERSION=$(curl -s -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/ankitects/anki/releases/latest | jq -r '.tag_name')" >> $GITHUB_ENV
 
       - name: Check if GHCR image tag exists
         id: check
