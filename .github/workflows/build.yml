@@ -27,13 +27,13 @@ jobs:
           echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}" >> ${GITHUB_ENV}
 
       - name: Checkout anki
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ankitects/anki
           ref: "refs/tags/${{ env.ANKI_VERSION }}"
 
       - name: Checkout docker-ankisyncserver
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: docker-ankisyncserver
 
